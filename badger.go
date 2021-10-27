@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"log"
 
 	"github.com/dgraph-io/badger/v3"
@@ -26,20 +27,55 @@ func (s *badgerstorage) name() string {
 }
 
 func (s *badgerstorage) query(memberids []uint32, movieids []uint32) ([]output, error) {
-	vs := make([]output, 0, len(memberids)*len(movieids))
-	for _, member := range memberids {
-		for _, movie := range movieids {
-			v := s.getMember(member)
-			w := s.getMovie(movie)
-			propensity := v.dot(w)
-			vs = append(vs, output{member, movie, propensity})
-		}
+	capacity := len(memberids) * len(movieids)
+	vs := make([]output, 0, capacity)
+	ch := make(chan output)
+	for _, movie := range movieids {
+		go func(movie uint32) {
+			for _, member := range memberids {
+				v := s.getMember(member)
+				w := s.getMovie(movie)
+				propensity := v.dot(w)
+				ch <- output{member, movie, propensity}
+			}
+		}(movie)
+	}
+
+	for i := 0; i < capacity; i++ {
+		vs = append(vs, <-ch)
 	}
 	return vs, nil
 }
 
 func (s *badgerstorage) queryRange(low uint32, high uint32, movieids []uint32) ([]output, error) {
 	vs := make([]output, 0, int(high-low)*len(movieids))
+	return vs, nil
+}
+
+func (s *badgerstorage) memberPropensities(movie uint32) ([]output, error) {
+	vs := make([]output, N_MEMBERS)
+	err := s.memberdb.View(func(txn *badger.Txn) error {
+		iter := txn.NewIterator(badger.IteratorOptions{})
+		i := 0
+		for iter.Rewind(); iter.Valid(); iter.Next() {
+			println(s.name(), "member propensity", i)
+			i++
+			if i == 1_000_000 {
+				break
+			}
+			member := binary.BigEndian.Uint32(iter.Item().Key())
+			v := vecFromBytes(iter.Item().Key())
+			w := s.getMovie(movie)
+			propensity := v.dot(w)
+			vs = append(vs, output{member, movie, propensity})
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
 	return vs, nil
 }
 

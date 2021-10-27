@@ -26,14 +26,44 @@ func (s *pebblestorage) name() string {
 }
 
 func (s *pebblestorage) query(memberids []uint32, movieids []uint32) ([]output, error) {
-	vs := make([]output, 0, len(memberids)*len(movieids))
-	for _, member := range memberids {
-		for _, movie := range movieids {
-			v := s.getMember(member)
-			w := s.getMovie(movie)
-			propensity := v.dot(w)
-			vs = append(vs, output{member, movie, propensity})
+	capacity := len(memberids) * len(movieids)
+	vs := make([]output, 0, capacity)
+	ch := make(chan output)
+
+	for _, movie := range movieids {
+		go func(movie uint32) {
+			for _, member := range memberids {
+				v := s.getMember(member)
+				w := s.getMovie(movie)
+				propensity := v.dot(w)
+				// vs = append(vs, output{member, movie, propensity})
+				ch <- output{member, movie, propensity}
+			}
+		}(movie)
+	}
+
+	for i := 0; i < capacity; i++ {
+		vs = append(vs, <-ch)
+	}
+
+	return vs, nil
+}
+
+func (s *pebblestorage) memberPropensities(movie uint32) ([]output, error) {
+	vs := make([]output, N_MEMBERS)
+	iter := s.memberdb.NewIter(&pebble.IterOptions{})
+	i := 0
+	for iter.First(); iter.Valid(); iter.Next() {
+		println(s.name(), "member propensity", i)
+		i++
+		if i == 1_000_000 {
+			break
 		}
+		member := binary.BigEndian.Uint32(iter.Key())
+		v := vecFromBytes(iter.Value())
+		w := s.getMovie(movie)
+		propensity := v.dot(w)
+		vs = append(vs, output{member, movie, propensity})
 	}
 	return vs, nil
 }
@@ -42,7 +72,6 @@ func (s *pebblestorage) queryRange(low uint32, high uint32, movieids []uint32) (
 	vs := make([]output, 0, int(high-low)*len(movieids))
 	iter := s.memberdb.NewIter(&pebble.IterOptions{LowerBound: uint32ToBeBytes(low), UpperBound: uint32ToBeBytes(high)})
 	for _, movie := range movieids {
-		s.memberdb.NewBatch()
 		for iter.First(); iter.Valid(); iter.Next() {
 			member := binary.BigEndian.Uint32(iter.Key())
 			v := vecFromBytes(iter.Value())

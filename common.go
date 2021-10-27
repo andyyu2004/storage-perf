@@ -52,7 +52,7 @@ func timed(f func() error) (time.Duration, error) {
 }
 
 func makeRange(min, max uint32) []uint32 {
-	a := make([]uint32, max-min+1)
+	a := make([]uint32, max-min)
 	for i := range a {
 		a[i] = min + uint32(i)
 	}

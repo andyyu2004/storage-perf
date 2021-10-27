@@ -45,8 +45,50 @@ func (s *pgstorage) query(memberids []uint32, movieids []uint32) ([]output, erro
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
+		var x struct {
+			member_id     uint32
+			movie_id      uint32
+			member_vector []byte
+			movie_vector  []byte
+		}
+
+		if err := rows.Scan(&x.member_id, &x.movie_id, &x.member_vector, &x.movie_vector); err != nil {
+			return nil, err
+		}
+
+		member_vector := vecFromBytes(x.member_vector)
+		movie_vector := vecFromBytes(x.movie_vector)
+		propensity := member_vector.dot(movie_vector)
+		vs = append(vs, output{
+			member:     x.member_id,
+			movie:      x.movie_id,
+			propensity: propensity,
+		})
+	}
+	return vs, nil
+}
+
+func (s *pgstorage) memberPropensities(movie uint32) ([]output, error) {
+	vs := make([]output, N_MEMBERS)
+	query := `select members.id as member_id, movies.id as movie_id, members.vector as member_vector, movies.vector as movie_vector
+			  from members cross join movies where movies.id = $1`
+	rows, err := s.db.Query(context.Background(), query, movie)
+	if err != nil {
+		return nil, err
+	}
+	// defer rows.Close()
+
+	i := 0
+	for rows.Next() {
+		println(s.name(), "member propensity", i)
+		i++
+
+		if i == 1_000_000 {
+			break
+		}
 		var x struct {
 			member_id     uint32
 			movie_id      uint32
@@ -78,6 +120,7 @@ func (s *pgstorage) queryRange(low uint32, high uint32, movieids []uint32) ([]ou
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var x struct {
