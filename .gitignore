@@ -1,5 +1,7 @@
 # the pebble databases
-members
-movies
+pebble_members
+pebble_movies
+badger_members
+badger_movies
 # binary
 storage-perf

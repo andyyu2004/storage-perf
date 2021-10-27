@@ -4,13 +4,13 @@ import (
 	"log"
 )
 
-const N_MEMBERS = 100_000_000
+const N_MEMBERS = 50_000_000
 const N_MOVIES = 25_000
 
 // Number of elements in each vector
 const K = 10
 
-const MOVIE_QUERY_SIZE = 100
+const MOVIE_QUERY_SIZE = 10
 const MEMBER_QUERY_SIZE = 10000
 
 type storage interface {
@@ -31,6 +31,14 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 
+	badger, err := newBadger()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// if err := insert(badger); err != nil {
+	// 	log.Fatal(err)
+	// }
+
 	pg, err := newPg()
 	if err != nil {
 		log.Fatal(err)
@@ -42,6 +50,7 @@ func main() {
 	backends := []storage{
 		pebble,
 		pg,
+		badger,
 	}
 
 	for _, backend := range backends {

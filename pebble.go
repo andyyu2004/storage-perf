@@ -13,11 +13,11 @@ type pebblestorage struct {
 }
 
 func newPebble() (*pebblestorage, error) {
-	memberdb, err := pebble.Open("members", &pebble.Options{})
+	memberdb, err := pebble.Open("pebble_members", &pebble.Options{})
 	if err != nil {
 		return nil, err
 	}
-	moviedb, err := pebble.Open("movies", &pebble.Options{})
+	moviedb, err := pebble.Open("pebble_movies", &pebble.Options{})
 	return &pebblestorage{memberdb, moviedb}, err
 }
 
@@ -96,14 +96,7 @@ func (s *pebblestorage) insertRandomMembers(n int) error {
 				return err
 			}
 		}
-
-		for i := 0; i < N_MOVIES; i++ {
-			err = s.setMovie(uint32(i), randomvec())
-			if err != nil {
-				return err
-			}
-		}
-		return err
+		return nil
 	})
 
 	if err != nil {
