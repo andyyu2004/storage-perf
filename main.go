@@ -4,38 +4,47 @@ import (
 	"log"
 )
 
-const N_MEMBERS = 50_000_000
+const N_MEMBERS = 100_000_000
 const N_MOVIES = 25_000
 
 // Number of elements in each vector
 const K = 10
 
-const MOVIE_QUERY_SIZE = 5
+const MOVIE_QUERY_SIZE = 100
 const MEMBER_QUERY_SIZE = 10000
 
 type storage interface {
 	name() string
 	query(memberids []uint32, movieids []uint32) ([]output, error)
 	queryRange(low uint32, high uint32, movieids []uint32) ([]output, error)
-	setMember(id uint32, v vector) error
-	setMovie(id uint32, v vector) error
+	insertRandomMembers(n int) error
+	insertRandomMovies(n int) error
 }
 
+// Uncomment `insert`s to run the insertion code once as it's pretty slow
 func main() {
 	pebble, err := newPebble()
 	if err != nil {
 		log.Fatal(err)
 	}
+	// if err := insert(pebble); err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	pg, err := newPg()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// if err := insert(pg); err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	backends := []storage{
 		pebble,
+		pg,
 	}
 
 	for _, backend := range backends {
-		// if err := insert(s); err != nil {
-		// 	log.Fatal(err)
-		// }
-
 		if err := queryRange(backend); err != nil {
 			log.Fatal(err)
 		}
@@ -48,22 +57,13 @@ func main() {
 
 func insert(s storage) error {
 	t, err := timed(func() error {
-		var err error
-		for i := 0; i < N_MEMBERS; i++ {
-			println(i)
-			err = s.setMember(uint32(i), randomvec())
-			if err != nil {
-				return err
-			}
+		if err := s.insertRandomMembers(N_MEMBERS); err != nil {
+			return err
 		}
-
-		for i := 0; i < N_MOVIES; i++ {
-			err = s.setMovie(uint32(i), randomvec())
-			if err != nil {
-				return err
-			}
+		if err := s.insertRandomMovies(N_MOVIES); err != nil {
+			return err
 		}
-		return err
+		return nil
 	})
 
 	if err != nil {
@@ -91,8 +91,8 @@ func queryRange(s storage) error {
 
 func query(s storage) error {
 	t, err := timed(func() error {
-		members := makeRange(0, 10000)
-		movies := makeRange(0, 5)
+		members := makeRange(0, MEMBER_QUERY_SIZE)
+		movies := makeRange(0, MOVIE_QUERY_SIZE)
 		_, err := s.query(members, movies)
 		return err
 	})

@@ -82,5 +82,54 @@ func (s *pebblestorage) setMember(id uint32, v vector) error {
 }
 
 func (s *pebblestorage) setMovie(id uint32, v vector) error {
+
 	return set(s.moviedb, id, v)
+}
+
+func (s *pebblestorage) insertRandomMembers(n int) error {
+	t, err := timed(func() error {
+		var err error
+		for i := 0; i < n; i++ {
+			println("pebble insert (counting up)", i)
+			err = s.setMember(uint32(i), randomvec())
+			if err != nil {
+				return err
+			}
+		}
+
+		for i := 0; i < N_MOVIES; i++ {
+			err = s.setMovie(uint32(i), randomvec())
+			if err != nil {
+				return err
+			}
+		}
+		return err
+	})
+
+	if err != nil {
+		return err
+	}
+
+	println(s.name(), "members insert time", t.Milliseconds())
+	return nil
+}
+
+func (s *pebblestorage) insertRandomMovies(n int) error {
+	t, err := timed(func() error {
+		var err error
+		for i := 0; i < n; i++ {
+			err = s.setMovie(uint32(i), randomvec())
+			if err != nil {
+				return err
+			}
+		}
+		return err
+	})
+
+	if err != nil {
+		return err
+	}
+
+	println(s.name(), "movie insert time", t.Milliseconds())
+	return nil
 }

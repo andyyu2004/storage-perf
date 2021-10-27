@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+type output struct {
+	member     uint32
+	movie      uint32
+	propensity float64
+}
+
 func uint32ToBeBytes(u uint32) []byte {
 	bytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(bytes, u)
@@ -14,21 +20,21 @@ func uint32ToBeBytes(u uint32) []byte {
 }
 
 type vector struct {
-	pouint32s [K]float64
+	Points [K]float64
 }
 
 func (v vector) dot(w vector) float64 {
 	dot := 0.0
 	for i := 0; i < K; i++ {
-		dot += v.pouint32s[i] * w.pouint32s[i]
+		dot += v.Points[i] * w.Points[i]
 	}
 	return dot
 }
 
 func (v vector) toBytes() []byte {
-	var buf []byte
-	binary.Write(bytes.NewBuffer(buf), binary.LittleEndian, v)
-	return buf
+	buf := bytes.NewBuffer([]byte{})
+	binary.Write(buf, binary.LittleEndian, v)
+	return buf.Bytes()
 }
 
 func vecFromBytes(buf []byte) vector {
@@ -56,7 +62,7 @@ func makeRange(min, max uint32) []uint32 {
 func randomvec() vector {
 	v := vector{}
 	for i := 0; i < K; i++ {
-		v.pouint32s[i] = rand.Float64()
+		v.Points[i] = rand.Float64()
 	}
 	return v
 }
