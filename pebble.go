@@ -1,0 +1,86 @@
+package main
+
+import (
+	"encoding/binary"
+	"log"
+
+	"github.com/cockroachdb/pebble"
+)
+
+type pebblestorage struct {
+	memberdb *pebble.DB
+	moviedb  *pebble.DB
+}
+
+func newPebble() (*pebblestorage, error) {
+	memberdb, err := pebble.Open("members", &pebble.Options{})
+	if err != nil {
+		return nil, err
+	}
+	moviedb, err := pebble.Open("movies", &pebble.Options{})
+	return &pebblestorage{memberdb, moviedb}, err
+}
+
+func (s *pebblestorage) name() string {
+	return "pebble"
+}
+
+func (s *pebblestorage) query(memberids []uint32, movieids []uint32) ([]output, error) {
+	vs := make([]output, 0, len(memberids)*len(movieids))
+	for _, member := range memberids {
+		for _, movie := range movieids {
+			v := s.getMember(member)
+			w := s.getMovie(movie)
+			propensity := v.dot(w)
+			vs = append(vs, output{member, movie, propensity})
+		}
+	}
+	return vs, nil
+}
+
+func (s *pebblestorage) queryRange(low uint32, high uint32, movieids []uint32) ([]output, error) {
+	vs := make([]output, 0, int(high-low)*len(movieids))
+	iter := s.memberdb.NewIter(&pebble.IterOptions{LowerBound: uint32ToBeBytes(low), UpperBound: uint32ToBeBytes(high)})
+	for _, movie := range movieids {
+		s.memberdb.NewBatch()
+		for iter.First(); iter.Valid(); iter.Next() {
+			member := binary.BigEndian.Uint32(iter.Key())
+			v := vecFromBytes(iter.Value())
+			w := s.getMovie(movie)
+			propensity := v.dot(w)
+			vs = append(vs, output{member, movie, propensity})
+		}
+	}
+	return vs, nil
+}
+
+func get(db *pebble.DB, id uint32) vector {
+	bytes, closer, err := db.Get(uint32ToBeBytes(id))
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := closer.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return vecFromBytes(bytes)
+}
+
+func (s *pebblestorage) getMember(id uint32) vector {
+	return get(s.memberdb, id)
+}
+
+func (s *pebblestorage) getMovie(id uint32) vector {
+	return get(s.moviedb, id)
+}
+
+func set(db *pebble.DB, id uint32, v vector) error {
+	return db.Set(uint32ToBeBytes(id), v.toBytes(), &pebble.WriteOptions{})
+}
+
+func (s *pebblestorage) setMember(id uint32, v vector) error {
+	return set(s.memberdb, id, v)
+}
+
+func (s *pebblestorage) setMovie(id uint32, v vector) error {
+	return set(s.moviedb, id, v)
+}
