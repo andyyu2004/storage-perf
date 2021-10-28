@@ -95,6 +95,9 @@ type row struct {
 	movie_vector  []byte
 }
 
+// NOTE queryModel's implementation seems faster than this one
+// So perhaps we can use a similar technique and instead make two queries, one for all the members and one for all the movies
+// instead of cross joining and pg
 func (s *pgstorage) query(memberids []uint32, movieids []uint32) ([]output, error) {
 	vs := make([]output, 0, len(memberids)*len(movieids))
 	query := `select members.id as member_id, movies.id as movie_id, members.vector as member_vector, movies.vector as movie_vector
