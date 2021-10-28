@@ -58,7 +58,7 @@ func (s *badgerstorage) queryModel(memberids []uint32, models []MovieModel) ([]o
 }
 
 func (s *badgerstorage) memberPropensities(movie uint32) ([]output, error) {
-	vs := make([]output, N_MEMBERS)
+	vs := make([]output, 0, N_MEMBERS)
 	err := s.memberdb.View(func(txn *badger.Txn) error {
 		iter := txn.NewIterator(badger.IteratorOptions{})
 		i := 0

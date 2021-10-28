@@ -11,8 +11,8 @@ const N_MOVIES = 25_000
 // Number of elements in each vector
 const K = 10
 
-const MOVIE_QUERY_SIZE = 5
-const MODEL_QUERY_SIZE = 100
+const MOVIE_QUERY_SIZE = 10
+const MODEL_QUERY_SIZE = 15
 const MEMBER_QUERY_SIZE = 10000
 
 type MovieModel struct {
@@ -108,7 +108,12 @@ func queryModels(s storage) error {
 	t, err := timed(func() error {
 		members := makeRange(0, MEMBER_QUERY_SIZE)
 		models := randomModels()
-		_, err := s.queryModel(members, models)
+		data, err := s.queryModel(members, models)
+
+		expectedLen := MEMBER_QUERY_SIZE * MODEL_QUERY_SIZE
+		if len(data) != expectedLen {
+			log.Fatalf("%s wrong number of model query results: expected %d, got %d", s.name(), expectedLen, len(data))
+		}
 		return err
 	})
 
@@ -117,21 +122,6 @@ func queryModels(s storage) error {
 	}
 
 	println(s.name(), "query models time:", t.Milliseconds())
-	return nil
-}
-
-func queryRange(s storage) error {
-	t, err := timed(func() error {
-		movies := makeRange(0, MOVIE_QUERY_SIZE)
-		_, err := s.queryRange(0, MEMBER_QUERY_SIZE, movies)
-		return err
-	})
-
-	if err != nil {
-		return err
-	}
-
-	println(s.name(), "range query time:", t.Milliseconds())
 	return nil
 }
 
@@ -155,6 +145,21 @@ func query(s storage) error {
 	}
 
 	println(s.name(), "query time ", t.Milliseconds())
+	return nil
+}
+
+func queryRange(s storage) error {
+	t, err := timed(func() error {
+		movies := makeRange(0, MOVIE_QUERY_SIZE)
+		_, err := s.queryRange(0, MEMBER_QUERY_SIZE, movies)
+		return err
+	})
+
+	if err != nil {
+		return err
+	}
+
+	println(s.name(), "range query time:", t.Milliseconds())
 	return nil
 }
 

@@ -55,7 +55,7 @@ func (s *pebblestorage) queryModel(memberids []uint32, models []MovieModel) ([]o
 }
 
 func (s *pebblestorage) memberPropensities(movie uint32) ([]output, error) {
-	vs := make([]output, N_MEMBERS)
+	vs := make([]output, 0, N_MEMBERS)
 	iter := s.memberdb.NewIter(&pebble.IterOptions{})
 	i := 0
 	for iter.First(); iter.Valid(); iter.Next() {

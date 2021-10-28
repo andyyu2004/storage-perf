@@ -48,7 +48,7 @@ func (s *pgstorage) queryModel(memberids []uint32, models []MovieModel) ([]outpu
 	}
 
 	// this contains the averaged vectors for each model
-	movieVectors := make([]vector, len(models))
+	movieVectors := make([]vector, 0, len(models))
 	for _, model := range models {
 		rows, err := s.db.Query(context.Background(), query, model.movies)
 		if err != nil {
@@ -124,7 +124,7 @@ func (s *pgstorage) query(memberids []uint32, movieids []uint32) ([]output, erro
 }
 
 func (s *pgstorage) memberPropensities(movie uint32) ([]output, error) {
-	vs := make([]output, N_MEMBERS)
+	vs := make([]output, 0, N_MEMBERS)
 	query := `select members.id as member_id, movies.id as movie_id, members.vector as member_vector, movies.vector as movie_vector
 			  from members cross join movies where movies.id = $1`
 	rows, err := s.db.Query(context.Background(), query, movie)
