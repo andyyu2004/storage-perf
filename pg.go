@@ -144,13 +144,8 @@ func (s *pgstorage) memberPropensities(movie uint32) ([]output, error) {
 		if i == 1_000_000 {
 			break
 		}
-		var x struct {
-			member_id     uint32
-			movie_id      uint32
-			member_vector []byte
-			movie_vector  []byte
-		}
 
+		var x row
 		if err := rows.Scan(&x.member_id, &x.movie_id, &x.member_vector, &x.movie_vector); err != nil {
 			return nil, err
 		}
@@ -178,13 +173,7 @@ func (s *pgstorage) queryRange(low uint32, high uint32, movieids []uint32) ([]ou
 	defer rows.Close()
 
 	for rows.Next() {
-		var x struct {
-			member_id     uint32
-			movie_id      uint32
-			member_vector []byte
-			movie_vector  []byte
-		}
-
+		var x row
 		if err := rows.Scan(&x.member_id, &x.movie_id, &x.member_vector, &x.movie_vector); err != nil {
 			return nil, err
 		}
