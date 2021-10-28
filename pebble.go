@@ -49,6 +49,11 @@ func (s *pebblestorage) query(memberids []uint32, movieids []uint32) ([]output, 
 	return vs, nil
 }
 
+func (s *pebblestorage) queryModel(memberids []uint32, models []MovieModel) ([]output, error) {
+	vs := make([]output, 0, len(memberids)*len(models))
+	return vs, nil
+}
+
 func (s *pebblestorage) memberPropensities(movie uint32) ([]output, error) {
 	vs := make([]output, N_MEMBERS)
 	iter := s.memberdb.NewIter(&pebble.IterOptions{})

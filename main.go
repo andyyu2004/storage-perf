@@ -12,11 +12,17 @@ const N_MOVIES = 25_000
 const K = 10
 
 const MOVIE_QUERY_SIZE = 5
-const MEMBER_QUERY_SIZE = 20000
+const MODEL_QUERY_SIZE = 100
+const MEMBER_QUERY_SIZE = 10000
+
+type MovieModel struct {
+	movies []uint32
+}
 
 type storage interface {
 	name() string
 	query(memberids []uint32, movieids []uint32) ([]output, error)
+	queryModel(memberids []uint32, models []MovieModel) ([]output, error)
 	memberPropensities(movie uint32) ([]output, error)
 	queryRange(low uint32, high uint32, movieids []uint32) ([]output, error)
 	insertRandomMembers(n int) error
@@ -25,18 +31,18 @@ type storage interface {
 
 // Uncomment `insert`s to run the insertion code once as it's pretty slow
 func main() {
-	pebble, err := newPebble()
-	if err != nil {
-		log.Fatal(err)
-	}
+	// pebble, err := newPebble()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 	// if err := insert(pebble); err != nil {
 	// 	log.Fatal(err)
 	// }
 
-	badger, err := newBadger()
-	if err != nil {
-		log.Fatal(err)
-	}
+	// badger, err := newBadger()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 	// if err := insert(badger); err != nil {
 	// 	log.Fatal(err)
 	// }
@@ -49,26 +55,30 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 
-	_ = pebble
-	_ = pg
-	_ = badger
+	// _ = pebble
+	// _ = pg
+	// _ = badger
 	backends := []storage{
-		badger,
-		pebble,
+		// badger,
 		pg,
+		// pebble,
 	}
 
 	for _, backend := range backends {
 		if err := query(backend); err != nil {
 			log.Fatal(err)
 		}
+		if err := queryModels(backend); err != nil {
+			log.Fatal(err)
+		}
 		if err := queryRange(backend); err != nil {
 			log.Fatal(err)
 		}
 
-		if err := queryMemberPropensities(backend); err != nil {
-			log.Fatal(err)
-		}
+		// if err := queryMemberPropensities(backend); err != nil {
+		// 	log.Fatal(err)
+		// }
+
 		println(backend.name(), "done")
 		time.Sleep(time.Second * 2)
 	}
@@ -91,6 +101,22 @@ func insert(s storage) error {
 	}
 
 	println(s.name(), "insert time", t.Milliseconds())
+	return nil
+}
+
+func queryModels(s storage) error {
+	t, err := timed(func() error {
+		members := makeRange(0, MEMBER_QUERY_SIZE)
+		models := randomModels()
+		_, err := s.queryModel(members, models)
+		return err
+	})
+
+	if err != nil {
+		return err
+	}
+
+	println(s.name(), "query models time:", t.Milliseconds())
 	return nil
 }
 

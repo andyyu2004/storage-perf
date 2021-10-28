@@ -13,6 +13,24 @@ type output struct {
 	propensity float64
 }
 
+func randomModels() []MovieModel {
+	models := make([]MovieModel, MODEL_QUERY_SIZE)
+	for i := 0; i < MODEL_QUERY_SIZE; i++ {
+		models[i] = randomModel()
+	}
+	return models
+}
+
+func randomModel() MovieModel {
+	n := rand.Int() % 20
+	movies := make([]uint32, n)
+	for i := 0; i < n; i++ {
+		movies[i] = rand.Uint32() % N_MOVIES
+	}
+	return MovieModel{movies}
+
+}
+
 func uint32ToBeBytes(u uint32) []byte {
 	bytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(bytes, u)
@@ -29,6 +47,18 @@ func (v vector) dot(w vector) float64 {
 		dot += v.Points[i] * w.Points[i]
 	}
 	return dot
+}
+
+func (v vector) addAssign(w vector) {
+	for i := 0; i < K; i++ {
+		v.Points[i] += w.Points[i]
+	}
+}
+
+func (v vector) divAssign(divisor float64) {
+	for i := 0; i < K; i++ {
+		v.Points[i] /= divisor
+	}
 }
 
 func (v vector) toBytes() []byte {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"github.com/jackc/pgx/v4"
 )
@@ -37,6 +38,63 @@ func (*pgstorage) name() string {
 	return "pg"
 }
 
+func (s *pgstorage) queryModel(memberids []uint32, models []MovieModel) ([]output, error) {
+	vs := make([]output, 0, len(memberids)*len(models))
+	query := `select id, vector from movies where id = any($1)`
+
+	var row struct {
+		id     uint32
+		vector []byte
+	}
+
+	// this contains the averaged vectors for each model
+	movieVectors := make([]vector, len(models))
+	for _, model := range models {
+		rows, err := s.db.Query(context.Background(), query, model.movies)
+		if err != nil {
+			return nil, err
+		}
+
+		v := vector{}
+		for rows.Next() {
+			if err := rows.Scan(&row.id, &row.vector); err != nil {
+				return nil, err
+			}
+			v.addAssign(vecFromBytes(row.vector))
+		}
+		v.divAssign(float64(len(model.movies)))
+		movieVectors = append(movieVectors, v)
+		rows.Close()
+	}
+
+	query = `select id, vector from members where members.id = any($1)`
+	rows, err := s.db.Query(context.Background(), query, memberids)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		if err := rows.Scan(&row.id, &row.vector); err != nil {
+			return nil, err
+		}
+
+		for _, v := range movieVectors {
+			// Don't really have a movie id as it's a model
+			// We could insert each model as a movie maybe
+			vs = append(vs, output{member: row.id, movie: math.MaxUint32, propensity: v.dot(vecFromBytes(row.vector))})
+		}
+	}
+
+	return vs, nil
+}
+
+type row struct {
+	member_id     uint32
+	movie_id      uint32
+	member_vector []byte
+	movie_vector  []byte
+}
+
 func (s *pgstorage) query(memberids []uint32, movieids []uint32) ([]output, error) {
 	vs := make([]output, 0, len(memberids)*len(movieids))
 	query := `select members.id as member_id, movies.id as movie_id, members.vector as member_vector, movies.vector as movie_vector
@@ -48,13 +106,7 @@ func (s *pgstorage) query(memberids []uint32, movieids []uint32) ([]output, erro
 	defer rows.Close()
 
 	for rows.Next() {
-		var x struct {
-			member_id     uint32
-			movie_id      uint32
-			member_vector []byte
-			movie_vector  []byte
-		}
-
+		var x row
 		if err := rows.Scan(&x.member_id, &x.movie_id, &x.member_vector, &x.movie_vector); err != nil {
 			return nil, err
 		}
